@@ -1,14 +1,43 @@
 version: '3.8'
 
 services:
+  # 1. The Database Box
   mongodb:
     image: mongo:latest
-    container_name: knowledge_hub_mongo
+    container_name: ai_hub_mongo
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-    restart: always
+
+  # 2. The Backend Box
+  backend:
+    build: ./backend             # Build using the Dockerfile in /backend
+    container_name: ai_hub_backend
+    ports:
+      - "8000:8000"              # Connect Mac Port 8000 to Box Port 8000
+    volumes:
+      - ./backend:/app           # <--- THE MAGIC! Syncs your Mac folder to the Box
+      - /app/venv                # Ignore the venv folder inside the box
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017  # Tell Python to find the "mongodb" box
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}   # Pass your API Key
+    depends_on:
+      - mongodb
+
+  # 3. The Frontend Box
+  frontend:
+    build: ./frontend            # Build using the Dockerfile in /frontend
+    container_name: ai_hub_frontend
+    ports:
+      - "3000:3000"              # Connect Mac Port 3000 to Box Port 3000
+    volumes:
+      - ./frontend:/app          # <--- THE MAGIC! Syncs your Mac folder to the Box
+      - /app/node_modules        # Don't overwrite the Box's installed tools
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
 
 volumes:
   mongo_data:

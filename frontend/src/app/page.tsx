@@ -34,6 +34,39 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [flippedCard, setFlippedCard] = useState<number | null>(null);
+  
+  // Drag & Drop State
+  const [isDragging, setIsDragging] = useState(false);
+
+  // --- Handlers ---
+  
+  // 1. Handle File Selection (Click or Drop)
+  const handleFileChange = (selectedFile: File | null) => {
+    if (selectedFile && selectedFile.type === 'application/pdf') {
+      setFile(selectedFile);
+    } else {
+      alert('Please upload a valid PDF file.');
+    }
+  };
+
+  // 2. Drag Events
+  const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileChange(e.dataTransfer.files[0]);
+    }
+  };
 
   const handleUpload = async () => {
     if (!file) return;
@@ -68,6 +101,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-zinc-800">
+      
+      {/* Hero Section */}
       <div className="max-w-5xl mx-auto pt-20 pb-12 px-6 text-center space-y-8">
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -98,32 +133,48 @@ export default function Home() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 pb-20">
+        
+        {/* Upload Card (Visible if no data) */}
         {!data && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="border-dashed border-2 border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
+            <Card 
+              className={`border-dashed border-2 transition-all duration-300 bg-zinc-900/20 
+                ${isDragging ? 'border-indigo-500 bg-indigo-500/10 scale-[1.02]' : 'border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/40'}
+              `}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+            >
               <CardContent className="p-12 flex flex-col items-center justify-center text-center space-y-6">
                 <input 
                   type="file" 
                   accept="application/pdf"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                   className="hidden" 
                   id="file-upload"
                 />
-                <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-4 w-full">
-                  <div className="p-4 rounded-full bg-zinc-900 border border-zinc-800">
-                    <Upload className="w-8 h-8 text-zinc-400" />
+                
+                <label 
+                  htmlFor="file-upload" 
+                  className="cursor-pointer flex flex-col items-center gap-4 w-full"
+                >
+                  <div className={`p-4 rounded-full border transition-all duration-300 ${isDragging ? 'bg-indigo-500 text-white border-indigo-400' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>
+                    <Upload className="w-8 h-8" />
                   </div>
                   <div>
-                    <p className="font-medium text-zinc-200 text-lg">{file ? file.name : "Click to upload PDF"}</p>
-                    <p className="text-sm text-zinc-500 mt-1">Up to 10MB</p>
+                    <p className="font-medium text-zinc-200 text-lg">
+                      {file ? file.name : (isDragging ? "Drop it like it's hot!" : "Click to upload or Drag & Drop")}
+                    </p>
+                    <p className="text-sm text-zinc-500 mt-1">PDF up to 10MB</p>
                   </div>
                 </label>
+
                 {file && (
-                  <Button onClick={handleUpload} disabled={loading} size="lg">
+                  <Button onClick={handleUpload} disabled={loading} size="lg" className="w-full sm:w-auto">
                     {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 'Analyze Document'}
                   </Button>
                 )}
@@ -132,6 +183,7 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* Dashboard (Visible after upload) */}
         {data && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800">
