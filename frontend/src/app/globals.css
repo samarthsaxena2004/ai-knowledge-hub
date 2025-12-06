@@ -4,36 +4,32 @@
 
 @layer base {
   :root {
-    --background: 0 0% 3.9%;
+    --background: 0 0% 2%; /* Almost pure black #050505 */
     --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
+    --card: 0 0% 4%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
+    --popover: 0 0% 4%;
     --popover-foreground: 0 0% 98%;
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
+    --secondary: 0 0% 9%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
+    --muted: 0 0% 9%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 9%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
     --ring: 0 0% 83.1%;
     --radius: 0.5rem;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground antialiased; }
 }
 
 /* 3D Flip Utilities */
@@ -42,8 +38,9 @@
 .backface-hidden { backface-visibility: hidden; }
 .rotate-y-180 { transform: rotateY(180deg); }
 
-/* Markdown Styling */
-.prose h1, .prose h2, .prose h3 { color: white; margin-top: 1.5rem; font-weight: 600; }
-.prose p { color: #a1a1aa; line-height: 1.7; }
-.prose strong { color: white; font-weight: 700; }
-.prose ul { list-style-type: disc; padding-left: 1.5rem; color: #a1a1aa; }
+/* Markdown Styles */
+.prose h1, .prose h2, .prose h3 { @apply text-foreground font-semibold mt-8 mb-4; }
+.prose p { @apply text-zinc-400 leading-7 mb-4; }
+.prose strong { @apply text-zinc-200 font-bold; }
+.prose ul { @apply list-disc ml-6 text-zinc-400 mb-4; }
+.prose li { @apply mb-1; }

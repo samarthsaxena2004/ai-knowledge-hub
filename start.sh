@@ -1,40 +1,40 @@
 #!/bin/bash
 
-# Define colors for pretty output
+# Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}🚀 Initializing AI Knowledge Hub...${NC}"
 
-# Function to kill backend when you press Ctrl+C
+# Cleanup function to kill background processes when you quit
 cleanup() {
-    echo -e "${BLUE}🛑 Shutting down services...${NC}"
+    echo -e "${BLUE}🛑 Shutting down...${NC}"
     kill $BACKEND_PID
     docker compose stop
     exit
 }
 
-# Trap the Ctrl+C signal
+# Listen for Ctrl+C
 trap cleanup SIGINT
 
 # 1. Start Database (Docker)
-echo -e "${GREEN}📦 Ensuring Database is running...${NC}"
-docker compose up -d
-sleep 2 # Give Mongo a moment to wake up
+echo -e "${GREEN}📦 Starting MongoDB container...${NC}"
+docker compose up -d mongodb
+sleep 2
 
-# 2. Start Backend (Python) in the Background
-echo -e "${GREEN}🧠 Starting Backend Brain (Port 8000)...${NC}"
+# 2. Start Backend (Python)
+echo -e "${GREEN}🧠 Starting Backend (Port 8000)...${NC}"
 source backend/venv/bin/activate
 cd backend
 python -m uvicorn main:app --reload --port 8000 &
-BACKEND_PID=$! # Save the Process ID so we can kill it later
+BACKEND_PID=$! # Save Process ID
 cd ..
 
-# 3. Start Frontend (Next.js) in the Foreground
-echo -e "${GREEN}💻 Starting Frontend Interface (Port 3000)...${NC}"
+# 3. Start Frontend (Node)
+echo -e "${GREEN}💻 Starting Frontend (Port 3000)...${NC}"
 cd frontend
 npm run dev
 
-# Keep script running
+# Wait indefinitely
 wait
