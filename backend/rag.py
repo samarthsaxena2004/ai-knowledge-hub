@@ -15,7 +15,6 @@ embedding_function = HuggingFaceEmbeddings(model_name="sentence-transformers/all
 vector_db = Chroma(persist_directory=DB_PATH, embedding_function=embedding_function)
 
 # 2. Setup LLM (The Brain)
-# We use Gemini 1.5 Flash because it's fast and free.
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0.3, # Low temperature = more factual responses
@@ -60,7 +59,36 @@ def summarize_document(file_path):
     Document Content:
     {full_text}
     """
-
+    
     # Send to Gemini
     response = llm.invoke(prompt)
     return response.content
+
+def generate_flashcards(file_path):
+    """
+    Generates 5 flashcards (Q&A) from the document.
+    """
+    loader = PyPDFLoader(file_path)
+    docs = loader.load()
+    full_text = "\n".join([d.page_content for d in docs])
+    
+    # We limit text context to 4000 chars to ensure fast processing for flashcards
+    # This usually captures the introduction and key concepts.
+    prompt = f"""
+    Based on the following text, create 5 study flashcards.
+    Return ONLY a raw JSON array (no markdown formatting, no code blocks) like this:
+    [
+        {{"question": "What is X?", "answer": "X is Y"}},
+        {{"question": "Who did Z?", "answer": "Person A"}}
+    ]
+
+    Text:
+    {full_text[:4000]}
+    """
+    
+    response = llm.invoke(prompt)
+    
+    # Cleaning up the response to ensure it's valid JSON
+    # Sometimes LLMs add ```json at the start, we remove it.
+    content = response.content.replace("```json", "").replace("```", "").strip()
+    return content
