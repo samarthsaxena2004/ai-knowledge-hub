@@ -1,6 +1,7 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Header
 from pydantic import BaseModel
-from rag import process_pdf, query_documents, summarize_document, generate_flashcards, get_friendly_error
+from typing import List, Optional
+from rag import process_pdf, query_documents, summarize_document, generate_flashcards, list_available_models
 import os
 import shutil
 import json
@@ -19,13 +20,33 @@ app.add_middleware(
 UPLOAD_FOLDER = "documents"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# --- Data Models ---
+class KeyValidationRequest(BaseModel):
+    api_key: str
+
 class SearchQuery(BaseModel):
     query: str
+    api_key: str
+    model: str
+
+# --- Endpoints ---
+
+@app.post("/validate-key")
+def validate_key(request: KeyValidationRequest):
+    """
+    Checks if the API Key is valid and returns the list of available models.
+    """
+    result = list_available_models(request.api_key)
+    if not result["valid"]:
+        raise HTTPException(status_code=401, detail=result["error"])
+    
+    return {"models": result["models"]}
 
 @app.post("/upload")
 async def upload_document(
     file: UploadFile = File(...), 
-    model: str = Form("gemini-2.5-flash")
+    model: str = Form(...),
+    api_key: str = Form(...) # We now require the user's key
 ):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Invalid file type. Only PDFs are allowed.")
@@ -33,19 +54,15 @@ async def upload_document(
     file_path = os.path.join(UPLOAD_FOLDER, file.filename)
     
     try:
-        # Save File
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # 1. Ingest
         num_chunks = process_pdf(file_path)
         
-        # 2. Generate Summary
-        # (This will raise an Exception if the model is broken, triggering the 'except' block below)
-        summary = summarize_document(file_path, model)
+        # Pass the user's key to the AI functions
+        summary = summarize_document(file_path, model, api_key)
         
-        # 3. Generate Flashcards
-        flashcards_json = generate_flashcards(file_path, model)
+        flashcards_json = generate_flashcards(file_path, model, api_key)
         try:
             flashcards = json.loads(flashcards_json)
         except:
@@ -63,25 +80,20 @@ async def upload_document(
     except Exception as e:
         if os.path.exists(file_path):
             os.remove(file_path)
-        
-        # Now we use the helper to format the error nicely for the frontend
-        friendly_msg = get_friendly_error(e)
-        
-        # Return a "Success" 200 OK so the frontend renders the UI, 
-        # but put the error message in the summary box so the user sees it.
         return {
             "filename": file.filename,
             "status": "Error",
             "model_used": model,
             "chunks": 0,
-            "summary": f"❌ **Analysis Failed**: {friendly_msg}",
+            "summary": f"❌ **Analysis Failed**: {str(e)}",
             "flashcards": []
         }
 
 @app.post("/search")
 def search_knowledge_base(request: SearchQuery):
     try:
-        answer = query_documents(request.query)
+        # Pass user key and model
+        answer = query_documents(request.query, request.api_key, request.model)
         return {"results": [answer]} 
     except Exception as e:
-        return {"results": [f"❌ Search Error: {get_friendly_error(e)}"]}
+        return {"results": [f"❌ Search Error: {str(e)}"]}

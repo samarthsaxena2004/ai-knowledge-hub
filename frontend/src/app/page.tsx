@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { 
   Upload, Search, FileText, Loader2, Sparkles, X, Brain, 
   ChevronRight, Zap, Cpu, Layers, CheckCircle2, XCircle, 
-  BookOpen, MessageSquare, GraduationCap, ArrowRight, Lightbulb
+  BookOpen, MessageSquare, GraduationCap, ArrowRight, Lightbulb, Key, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionTemplate, useMotionValue } from 'framer-motion';
 
@@ -189,6 +189,13 @@ function FlashcardItem({
 
 // --- Main Page Component ---
 export default function Home() {
+  // --- Auth State ---
+  const [apiKey, setApiKey] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // --- App State ---
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ProcessedData | null>(null);
@@ -197,13 +204,28 @@ export default function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [flippedCard, setFlippedCard] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  
-  // FIX: Default to 2.5 Flash which we know exists
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
-  
+  const [selectedModel, setSelectedModel] = useState(""); // Will populate dynamically
   const [loadingSteps, setLoadingSteps] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Auth Handler ---
+  const handleAuth = async () => {
+    if (!apiKey.trim()) return;
+    setAuthLoading(true);
+    try {
+        const res = await axios.post('http://127.0.0.1:8000/validate-key', { api_key: apiKey });
+        setAvailableModels(res.data.models);
+        // Default to the first text model found, preferably Flash
+        const defaultModel = res.data.models.find((m: string) => m.includes('flash')) || res.data.models[0];
+        setSelectedModel(defaultModel);
+        setIsAuthenticated(true);
+    } catch (err: any) {
+        alert(err.response?.data?.detail || "Invalid API Key. Please check your Google Gemini key.");
+    } finally {
+        setAuthLoading(false);
+    }
+  };
 
   const handleFileChange = (selectedFile: File | null) => {
     if (selectedFile && selectedFile.type === 'application/pdf') {
@@ -251,6 +273,7 @@ export default function Home() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('model', selectedModel);
+    formData.append('api_key', apiKey); // Send User Key
 
     try {
       const res = await axios.post('http://127.0.0.1:8000/upload', formData);
@@ -274,7 +297,11 @@ export default function Home() {
     setSearchResult(null);
     
     try {
-      const res = await axios.post('http://127.0.0.1:8000/search', { query });
+      const res = await axios.post('http://127.0.0.1:8000/search', { 
+          query,
+          api_key: apiKey,
+          model: selectedModel
+      });
       
       let answerText = "";
       if (res.data.results && Array.isArray(res.data.results)) {
@@ -297,12 +324,10 @@ export default function Home() {
 
   const handleMastered = (index: number, action: 'mastered' | 'skipped') => {
     if (!data) return;
-    
     const updatedCards = data.flashcards.map((card, i) => 
         i === index ? { ...card, exitVariant: action } : card
     );
     setData(prev => prev ? { ...prev, flashcards: updatedCards } : null);
-
     setTimeout(() => {
         setData(prev => {
             if (!prev) return null;
@@ -314,10 +339,65 @@ export default function Home() {
     }, 300);
   };
 
+  // --- Auth Screen Render ---
+  if (!isAuthenticated) {
+    return (
+        <div className="min-h-screen bg-[#030304] text-zinc-100 font-sans flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            {/* Background */}
+            <div className="fixed inset-0 z-0 h-full w-full pointer-events-none">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[800px] h-[400px] bg-indigo-600/10 blur-[120px] rounded-full"></div>
+            </div>
 
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }} 
+                animate={{ opacity: 1, scale: 1 }} 
+                className="z-10 w-full max-w-md space-y-8"
+            >
+                <div className="text-center space-y-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-widest text-zinc-400">
+                        <Lock size={12} className="text-indigo-400" />
+                        <span>Secure Access</span>
+                    </div>
+                    <h1 className="text-4xl font-bold tracking-tight">System Initialization</h1>
+                    <p className="text-zinc-500">Please enter your Google Gemini API Key to activate the Neural Engine.</p>
+                </div>
+
+                <SpotlightCard className="bg-zinc-900/50 backdrop-blur-xl">
+                    <CardContent className="p-8 space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-zinc-300 ml-1">API Key</label>
+                            <div className="relative">
+                                <Input 
+                                    type="password" 
+                                    placeholder="AIzaSy..." 
+                                    className="bg-black/50 border-white/10 h-12 px-4 focus:ring-indigo-500/50 font-mono text-sm"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                />
+                                <Key className="absolute right-4 top-3.5 text-zinc-600" size={18} />
+                            </div>
+                        </div>
+                        <Button 
+                            onClick={handleAuth} 
+                            disabled={authLoading || !apiKey}
+                            className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
+                        >
+                            {authLoading ? <Loader2 className="animate-spin" /> : "Verify & Launch System"}
+                        </Button>
+                        <p className="text-[10px] text-center text-zinc-600">
+                            Your key is used locally for this session and is never stored on our servers.
+                        </p>
+                    </CardContent>
+                </SpotlightCard>
+            </motion.div>
+        </div>
+    );
+  }
+
+  // --- Main App Render (Authenticated) ---
   return (
     <div className="min-h-screen bg-[#030304] text-zinc-100 font-sans selection:bg-indigo-500/30 overflow-x-hidden flex flex-col">
-      
       {/* 1. Cinematic Background */}
       <div className="fixed inset-0 z-0 h-full w-full pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:40px_40px]"></div>
@@ -342,32 +422,18 @@ export default function Home() {
           
           <div className="h-4 w-px bg-white/10 mx-1"></div>
 
-          {/* Model Selector - UPDATED to use 2.5 Pro */}
+          {/* Dynamic Model Selector (Populated from User's Key) */}
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={!!data}>
             <SelectTrigger className="h-8 border-0 bg-transparent focus:ring-0 text-xs font-medium text-zinc-300 gap-2 hover:bg-white/5 rounded-full transition-colors min-w-[140px]">
               <Cpu size={14} className="text-indigo-400" />
-              <span>{selectedModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}</span>
+              <span>{selectedModel}</span>
             </SelectTrigger>
             <SelectContent className="bg-[#0A0A0A] border-zinc-800 text-zinc-300 w-[280px]">
-              <SelectItem value="gemini-2.5-flash" className="py-3 cursor-pointer focus:bg-zinc-900 focus:text-indigo-300">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-zinc-200">Gemini 2.5 Flash</span>
-                    <Badge variant="outline" className="text-[10px] h-4 px-1 border-emerald-500/30 text-emerald-400">FAST</Badge>
-                  </div>
-                  <span className="text-xs text-zinc-500">Optimized for speed & summaries.</span>
-                </div>
-              </SelectItem>
-              {/* Changed from 1.5-pro to 2.5-pro */}
-              <SelectItem value="gemini-2.5-pro" className="py-3 cursor-pointer focus:bg-zinc-900 focus:text-indigo-300">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-zinc-200">Gemini 2.5 Pro</span>
-                    <Badge variant="outline" className="text-[10px] h-4 px-1 border-indigo-500/30 text-indigo-400">SMART</Badge>
-                  </div>
-                  <span className="text-xs text-zinc-500">High reasoning & complex analysis.</span>
-                </div>
-              </SelectItem>
+              {availableModels.map((model) => (
+                  <SelectItem key={model} value={model} className="py-2 cursor-pointer focus:bg-zinc-900">
+                      <span className="font-medium text-zinc-200">{model}</span>
+                  </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
