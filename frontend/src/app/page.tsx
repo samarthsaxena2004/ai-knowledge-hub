@@ -549,8 +549,8 @@ export default function Home() {
               </div>
               <p className="text-muted-foreground text-sm">© 2025 AI RAG Engine. <br/>Architected for High-Fidelity Learning.</p>
               <div className="flex gap-6 mt-2">
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors text-sm">GitHub</a>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Twitter</a>
+                <a href="https://github.com/samarthsaxena2004/ai-knowledge-hub/blob/main/README.md" className="text-muted-foreground hover:text-foreground transition-colors text-sm">GitHub Docs</a>
+                <a href="https://enflect.tech/" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Portfolio</a>
               </div>
             </div>
          </div>
