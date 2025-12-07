@@ -86,7 +86,10 @@ npm run dev
 
 ### Backend → Render
 1. Create new Web Service → Runtime: Docker → Root Directory: backend
-2. Add environment variable: GOOGLE_API_KEY=your_key_here
+2. Add environment variable: 
+```bash
+GOOGLE_API_KEY=your_key_here
+```
 3. Deploy → copy the backend URL
 
 ### Frontend → Vercel
