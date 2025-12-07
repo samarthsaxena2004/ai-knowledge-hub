@@ -54,8 +54,8 @@ docker compose up --build
 ```
 
 ### 3. Open the app
-- Frontend: http://localhost:3000
-- Backend API docs: http://localhost:8000/docs
+- Frontend: ```http://localhost:3000```
+- Backend API docs: ```http://localhost:8000/docs```
 - Mobile on same WiFi: ```http://<your-local-ip>:3000```
 
 ---
