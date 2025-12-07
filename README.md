@@ -89,7 +89,7 @@ npm run dev
 2. Add environment variable: GOOGLE_API_KEY=your_key_here
 3. Deploy → copy the backend URL
 
-## Frontend → Vercel
+### Frontend → Vercel
 1. Import the repo
 2. Set root directory to /frontend
 3. Add environment variable:
