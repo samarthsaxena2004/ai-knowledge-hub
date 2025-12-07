@@ -8,7 +8,7 @@
 
 Users can upload textbooks, research papers, or legal documents and instantly receive **concise summaries**, **study flashcards**, and a **semantic chat interface** to ask deep questions about the content.
 
-It leverages **Google Gemini 1.5 Flash** for high-speed, cost-effective analysis and **ChromaDB** for local vector storage, ensuring a privacy-first, zero-cost deployment architecture.
+It leverages **Google Gemini 2.5 Flash** for high-speed, cost-effective analysis and **ChromaDB** for local vector storage, ensuring a privacy-first, zero-cost deployment architecture.
 
 ---
 
@@ -29,7 +29,7 @@ It leverages **Google Gemini 1.5 Flash** for high-speed, cost-effective analysis
 - Next.js 14 • Tailwind CSS • Shadcn/UI • Framer Motion • Lucide Icons
 
 ### Backend
-- FastAPI • LangChain • ChromaDB (Embedded) • Google Gemini 1.5 Flash
+- FastAPI • LangChain • ChromaDB (Embedded) • Google Gemini 2.5 Flash
 
 ### DevOps
 - Docker + Docker Compose • Vercel (Frontend) • Render (Backend)
