@@ -1,43 +1,28 @@
 version: '3.8'
 
 services:
-  # 1. The Database Box
-  mongodb:
-    image: mongo:latest
-    container_name: ai_hub_mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
-  # 2. The Backend Box
+  # 1. The Backend (Python + ChromaDB + Gemini)
   backend:
-    build: ./backend             # Build using the Dockerfile in /backend
-    container_name: ai_hub_backend
+    build: ./backend             # CORRECT: Builds from the /backend folder
+    container_name: second_brain_backend
     ports:
-      - "8000:8000"              # Connect Mac Port 8000 to Box Port 8000
+      - "8000:8000"
     volumes:
-      - ./backend:/app           # <--- THE MAGIC! Syncs your Mac folder to the Box
-      - /app/venv                # Ignore the venv folder inside the box
+      # REQUIRED: Keep your AI memory safe (Persistence)
+      - ./backend/chroma_db:/app/chroma_db
+      - ./backend/documents:/app/documents
     environment:
-      - MONGO_URI=mongodb://mongodb:27017  # Tell Python to find the "mongodb" box
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}   # Pass your API Key
-    depends_on:
-      - mongodb
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
 
-  # 3. The Frontend Box
+  # 2. The Frontend (Next.js)
+  # ... inside the frontend service block
   frontend:
-    build: ./frontend            # Build using the Dockerfile in /frontend
-    container_name: ai_hub_frontend
+    build: ./frontend
+    container_name: second_brain_frontend
     ports:
-      - "3000:3000"              # Connect Mac Port 3000 to Box Port 3000
-    volumes:
-      - ./frontend:/app          # <--- THE MAGIC! Syncs your Mac folder to the Box
-      - /app/node_modules        # Don't overwrite the Box's installed tools
+      - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      # UPDATE THIS LINE:
+      - NEXT_PUBLIC_API_URL=http://192.168.1.3:8000
     depends_on:
       - backend
-
-volumes:
-  mongo_data:

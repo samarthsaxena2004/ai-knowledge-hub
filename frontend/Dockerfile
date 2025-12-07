@@ -1,20 +1,23 @@
-# 1. Start with a blank Linux machine that has Node.js 18 installed
-FROM node:18-alpine
+# UPDATE: Changed from node:18 to node:20 to satisfy Next.js requirements
+FROM node:20-alpine
 
-# 2. Create a folder named "app"
+# Set working directory
 WORKDIR /app
 
-# 3. Copy the package files (your dependencies list)
+# Copy package files
 COPY package*.json ./
 
-# 4. Install the dependencies inside the Box
+# Install dependencies
 RUN npm install
 
-# 5. Copy ALL your frontend code into the Box
+# Copy source code
 COPY . .
 
-# 6. Open Port 3000
+# Build the Next.js app
+RUN npm run build
+
+# Expose port
 EXPOSE 3000
 
-# 7. Start the website
-CMD ["npm", "run", "dev"]
+# Start the app
+CMD ["npm", "start"]

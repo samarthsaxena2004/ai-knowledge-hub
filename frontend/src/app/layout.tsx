@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers"; 
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AI Knowledge Hub",
-  description: "Advanced RAG Document Assistant",
+  title: "Second Brain",
+  description: "Next-gen RAG Engine",
 };
 
 export default function RootLayout({
@@ -15,9 +16,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        {children}
+        {/* Wrap children in Providers */}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

@@ -1,5 +1,4 @@
-import os
-# Removed load_dotenv() - we don't rely on server env files anymore
+import json
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -9,51 +8,33 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import google.generativeai as genai
 
-# 1. Setup Vector DB (Stays local)
+# 1. Setup Vector DB (Local & Free)
 DB_PATH = "./chroma_db"
 embedding_function = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vector_db = Chroma(persist_directory=DB_PATH, embedding_function=embedding_function)
 
-# --- Helper: Error Mapper ---
-def get_friendly_error(e):
-    err_str = str(e).lower()
-    if "404" in err_str: return "Model not found. Your API key might not support this model."
-    if "429" in err_str: return "System busy (Rate Limit). Try again in 30s."
-    if "401" in err_str or "invalid" in err_str: return "Authentication failed. Invalid API Key."
-    return f"System Error: {str(e)[:50]}..."
+# --- CONFIGURATION ---
+# We force this specific model ID. 
+# "gemini-2.5" does not exist. "gemini-1.5-flash" is the correct latest version.
+FIXED_MODEL = "gemini-2.5-flash"
 
-# 2. Dynamic LLM Loader (Now requires API Key)
-def get_llm(model_name, api_key):
+def get_llm(api_key):
+    """
+    Returns the Gemini 1.5 Flash client.
+    """
     return ChatGoogleGenerativeAI(
-        model=model_name,
+        model=FIXED_MODEL,
         temperature=0.3,
-        google_api_key=api_key, # Use user-provided key
+        google_api_key=api_key,
         convert_system_message_to_human=True 
     )
 
-# --- NEW: Validate & List Models ---
-def list_available_models(api_key):
-    """
-    Checks the user's API key and returns a list of models they can actually use.
-    """
+def validate_api_key(api_key):
     try:
         genai.configure(api_key=api_key)
-        models = genai.list_models()
-        available = []
-        
-        # Filter for text-generation models
-        for m in models:
-            if 'generateContent' in m.supported_generation_methods:
-                # Clean up the name (remove 'models/' prefix)
-                name = m.name.replace('models/', '')
-                available.append(name)
-        
-        # If list is empty, key might be valid but has no permissions (unlikely)
-        if not available:
-            return {"valid": False, "error": "No text models found for this key."}
-            
-        return {"valid": True, "models": available}
-        
+        # Simple test call to check validity
+        list(genai.list_models(page_size=1))
+        return {"valid": True}
     except Exception as e:
         return {"valid": False, "error": str(e)}
 
@@ -63,6 +44,7 @@ def process_pdf(file_path):
         documents = loader.load()
         if not documents: raise ValueError("Empty PDF")
         
+        # Split text for vector storage
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
         chunks = text_splitter.split_documents(documents)
         vector_db.add_documents(chunks)
@@ -70,69 +52,62 @@ def process_pdf(file_path):
     except Exception as e:
         raise ValueError(f"Ingestion failed: {str(e)}")
 
-def summarize_document(file_path, model_name, api_key):
+def analyze_full_document(file_path, api_key):
+    """
+    Performs Summary + Flashcards in a SINGLE call to save time/limits.
+    """
     loader = PyPDFLoader(file_path)
     docs = loader.load()
-    full_text = "\n".join([d.page_content for d in docs])
+    # Limit to ~30k chars to ensure we don't hit obscure limits, 
+    # though 1.5 Flash can handle much more.
+    full_text = "\n".join([d.page_content for d in docs])[:50000]
     
     prompt = f"""
-    Provide a concise summary of this document with 5 key bullet points.
-    Use Markdown formatting.
-    Document Content: {full_text[:30000]} 
+    Analyze the text below. Return ONLY raw JSON.
+    Structure:
+    {{
+      "summary": "markdown summary with 5 bullet points",
+      "flashcards": [
+         {{"question": "Q1", "answer": "A1"}},
+         {{"question": "Q2", "answer": "A2"}},
+         {{"question": "Q3", "answer": "A3"}},
+         {{"question": "Q4", "answer": "A4"}},
+         {{"question": "Q5", "answer": "A5"}}
+      ]
+    }}
+    
+    Document Text:
+    {full_text}
     """
     
     try:
-        llm = get_llm(model_name, api_key)
-        return llm.invoke(prompt).content
-    except Exception as e:
-        return get_friendly_error(e)
-
-def generate_flashcards(file_path, model_name, api_key):
-    loader = PyPDFLoader(file_path)
-    docs = loader.load()
-    full_text = "\n".join([d.page_content for d in docs])
-    
-    prompt = f"""
-    Create 5 study flashcards from the text below.
-    Return ONLY a raw JSON array: [{{"question": "Q?", "answer": "A"}}]
-    Text: {full_text[:20000]}
-    """
-    
-    try:
-        llm = get_llm(model_name, api_key)
-        res = llm.invoke(prompt)
-        return res.content.replace("```json", "").replace("```", "").strip()
-    except:
-        return "[]"
-
-def query_expansion_search(query: str, model_name: str, api_key: str) -> str:
-    try:
-        llm = get_llm(model_name, api_key)
+        llm = get_llm(api_key)
+        res = llm.invoke(prompt).content
         
-        # 1. Search (Database access doesn't need API key, only Embedding does if using cloud)
-        # Note: We use local HuggingFace embeddings so searching is free!
+        # Clean markdown formatting if model adds it
+        clean_json = res.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_json)
+    except Exception as e:
+        return {
+            "summary": f"Error generating summary: {str(e)}",
+            "flashcards": []
+        }
+
+def query_documents(query, api_key):
+    try:
+        llm = get_llm(api_key)
         results = vector_db.similarity_search(query, k=5)
-        if not results: return "No relevant info found."
+        if not results: return "No info found in document."
         
         context = "\n---\n".join([doc.page_content for doc in results])
-
-        # 2. Synthesize
         synthesis_prompt = PromptTemplate.from_template(
             """
-            You are a research assistant. Answer the question using ONLY the context below.
-            Use Markdown (bolding, lists) for clarity.
-            
-            QUESTION: {query}
-            CONTEXT: {context}
+            Answer the question based ONLY on the context below.
+            Context: {context}
+            Question: {query}
             """
         )
-        
         chain = synthesis_prompt | llm | StrOutputParser()
         return chain.invoke({"query": query, "context": context})
-        
     except Exception as e:
-        return get_friendly_error(e)
-
-# API Wrapper
-def query_documents(query, api_key, model_name):
-    return query_expansion_search(query, model_name, api_key)
+        return f"Error: {str(e)}"

@@ -1,23 +1,28 @@
-# 1. Start with a blank Linux machine that has Python 3.10 installed
-FROM python:3.10-slim
+FROM python:3.10-slim-bookworm
 
-# 2. Create a folder named "app" inside that box
 WORKDIR /app
 
-# 3. Install the tools needed to run Linux commands
-RUN apt-get update && apt-get install -y build-essential curl
+# --- FIX: Configure APT to handle unstable networks ---
+# This disables aggressive caching and pipelining that causes Hash Sum Mismatches
+RUN echo "Acquire::http::Pipeline-Depth 0;" > /etc/apt/apt.conf.d/99custom && \
+    echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/99custom && \
+    echo "Acquire::BrokenProxy true;" >> /etc/apt/apt.conf.d/99custom
 
-# 4. Copy the "requirements.txt" from your Mac into the Box
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libsqlite3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
 COPY requirements.txt .
-
-# 5. Install the Python libraries inside the Box
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Copy ALL your backend code into the Box
+# Copy application code
 COPY . .
 
-# 7. Open Port 8000 so we can talk to it
+# Expose port
 EXPOSE 8000
 
-# 8. Run the Server (with --reload so it updates when you change files!)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Start the server
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
