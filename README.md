@@ -57,3 +57,81 @@ docker compose up --build
 - Frontend: http://localhost:3000
 - Backend API docs: http://localhost:8000/docs
 - Mobile on same WiFi: http://<your-local-ip>:3000
+
+---
+
+## Manual Installation (No Docker)
+
+### Backend
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate    # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- Open http://localhost:3000
+
+---
+
+## Deployment Guide
+
+### Backend → Render
+1. Create new Web Service → Runtime: Docker → Root Directory: backend
+2. Add environment variable: GOOGLE_API_KEY=your_key_here
+3. Deploy → copy the backend URL
+
+## Frontend → Vercel
+1. Import the repo
+2. Set root directory to /frontend
+3. Add environment variable:
+```bash
+NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
+```
+4. Deploy
+
+---
+
+## Project Structure
+```bash
+ai-knowledge-hub/
+├── backend/
+│   ├── chroma_db/
+│   ├── Dockerfile
+│   ├── main.py
+│   ├── rag.py
+│   └── requirements.txt
+├── frontend/
+│   └── Dockerfile
+├── src/
+│   ├── app/
+│   ├── components/
+│   └── lib/
+├── public/
+├── docker-compose.yml
+├── package.json
+└── README.md
+```
+
+---
+
+## Contributing
+1. Fork the repo
+2. Create your feature branch (```git checkout -b feature/amazing```)
+3. Commit your changes (```git commit -m 'Add amazing feature'```)
+4. Push to the branch (```git push origin feature/amazing```)
+5. Open a Pull Request
+
+---
+
+## License
+- Released under the MIT License.
+- Built with ❤️ by [Samarth Saxena](https://github.com/samarthsaxena2004)
