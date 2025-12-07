@@ -46,3 +46,11 @@ It leverages **Google Gemini 1.5 Flash** for high-speed, cost-effective analysis
 ```bash
 git clone https://github.com/yourusername/ai-knowledge-hub.git
 cd ai-knowledge-hub
+```
+
+### 2. Run with Docker Compose (Recommended)
+```bash
+docker compose up --build
+```
+
+### 3. Open the app
