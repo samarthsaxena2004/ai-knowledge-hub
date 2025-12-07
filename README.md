@@ -110,12 +110,12 @@ ai-knowledge-hub/
 │   ├── rag.py
 │   └── requirements.txt
 ├── frontend/
-│   └── Dockerfile
-├── src/
-│   ├── app/
-│   ├── components/
-│   └── lib/
-├── public/
+│   ├── Dockerfile
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/
+│   │   └── lib/
+│   └── public/
 ├── docker-compose.yml
 ├── package.json
 └── README.md
