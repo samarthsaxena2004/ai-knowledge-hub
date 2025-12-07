@@ -197,7 +197,10 @@ export default function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [flippedCard, setFlippedCard] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // FIX: Default to 2.5 Flash which we know exists
   const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
+  
   const [loadingSteps, setLoadingSteps] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -339,15 +342,32 @@ export default function Home() {
           
           <div className="h-4 w-px bg-white/10 mx-1"></div>
 
-          {/* Model Selector */}
+          {/* Model Selector - UPDATED to use 2.5 Pro */}
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={!!data}>
-            <SelectTrigger className="h-8 border-0 bg-transparent focus:ring-0 text-xs font-medium text-zinc-300 gap-2 hover:bg-white/5 rounded-full transition-colors">
+            <SelectTrigger className="h-8 border-0 bg-transparent focus:ring-0 text-xs font-medium text-zinc-300 gap-2 hover:bg-white/5 rounded-full transition-colors min-w-[140px]">
               <Cpu size={14} className="text-indigo-400" />
-              <SelectValue />
+              <span>{selectedModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}</span>
             </SelectTrigger>
-            <SelectContent className="bg-[#0A0A0A] border-zinc-800 text-zinc-300">
-              <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
-              <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+            <SelectContent className="bg-[#0A0A0A] border-zinc-800 text-zinc-300 w-[280px]">
+              <SelectItem value="gemini-2.5-flash" className="py-3 cursor-pointer focus:bg-zinc-900 focus:text-indigo-300">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-zinc-200">Gemini 2.5 Flash</span>
+                    <Badge variant="outline" className="text-[10px] h-4 px-1 border-emerald-500/30 text-emerald-400">FAST</Badge>
+                  </div>
+                  <span className="text-xs text-zinc-500">Optimized for speed & summaries.</span>
+                </div>
+              </SelectItem>
+              {/* Changed from 1.5-pro to 2.5-pro */}
+              <SelectItem value="gemini-2.5-pro" className="py-3 cursor-pointer focus:bg-zinc-900 focus:text-indigo-300">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-zinc-200">Gemini 2.5 Pro</span>
+                    <Badge variant="outline" className="text-[10px] h-4 px-1 border-indigo-500/30 text-indigo-400">SMART</Badge>
+                  </div>
+                  <span className="text-xs text-zinc-500">High reasoning & complex analysis.</span>
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
 
@@ -545,7 +565,7 @@ export default function Home() {
                     {searchResult && (
                       <SpotlightCard className="bg-[#0A0A0A]">
                         <CardContent className="p-8 text-base leading-relaxed text-zinc-300">
-                          {/* WRAPPER FIX: className applied to div, not ReactMarkdown */}
+                          {/* Wrapper div to apply className */}
                           <div className="prose prose-invert prose-zinc max-w-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                               {searchResult}
@@ -594,12 +614,14 @@ export default function Home() {
       {/* 3. Glowing Nexus Footer */}
       <footer className="w-full py-20 mt-32 border-t border-white/5 bg-[#020202]">
          <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-end gap-12">
-            <div className="relative">
-              <div className="absolute -inset-4 bg-indigo-500/20 blur-3xl opacity-20"></div>
-              <h1 className="relative text-[15vw] md:text-[6rem] font-bold text-zinc-900 leading-none tracking-tighter select-none cursor-default drop-shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+            
+            <div className="relative group cursor-default">
+              <div className="absolute -inset-4 bg-indigo-500/20 blur-3xl opacity-20 group-hover:opacity-50 transition-opacity duration-700"></div>
+              <h1 className="relative text-[15vw] md:text-[6rem] font-bold text-zinc-900 leading-none tracking-tighter select-none transition-all duration-700 group-hover:text-zinc-100 group-hover:drop-shadow-[0_0_40px_rgba(79,70,229,0.5)]">
                 NEXUS
               </h1>
             </div>
+
             <div className="flex flex-col items-end gap-6 text-right">
               <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-mono uppercase tracking-widest border border-white/5 px-3 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>

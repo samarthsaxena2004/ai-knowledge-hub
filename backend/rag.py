@@ -15,22 +15,44 @@ DB_PATH = "./chroma_db"
 embedding_function = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vector_db = Chroma(persist_directory=DB_PATH, embedding_function=embedding_function)
 
-# 2. Dynamic LLM Loader
+# --- Helper: Error Mapper ---
+def get_friendly_error(e):
+    err_str = str(e).lower()
+    if "404" in err_str: return "Selected model not found. Switching model..."
+    if "429" in err_str: return "System busy (Rate Limit). Try again in 30s."
+    if "401" in err_str: return "Authentication failed. Check API Key."
+    return f"System Error: {str(e)[:50]}..."
+
+# 2. Dynamic LLM Loader (UPDATED FOR YOUR API ACCESS)
 def get_llm(model_name):
-    # Map friendly names to actual API model names if needed
+    # Mapping UI selection to your AVAILABLE models
+    model_map = {
+        "gemini-2.5-flash": "gemini-2.5-flash", # You have this!
+        "gemini-2.5-pro": "gemini-2.5-pro",     # You have this too!
+    }
+    
+    # Default to 2.5 Flash if name is weird
+    api_model = model_map.get(model_name, "gemini-2.5-flash")
+
     return ChatGoogleGenerativeAI(
-        model=model_name,
-        temperature=0.1, # Keep strict!
-        google_api_key=os.getenv("GOOGLE_API_KEY")
+        model=api_model,
+        temperature=0.3,
+        google_api_key=os.getenv("GOOGLE_API_KEY"),
+        convert_system_message_to_human=True 
     )
 
 def process_pdf(file_path):
-    loader = PyPDFLoader(file_path)
-    documents = loader.load()
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    chunks = text_splitter.split_documents(documents)
-    vector_db.add_documents(chunks)
-    return len(chunks)
+    try:
+        loader = PyPDFLoader(file_path)
+        documents = loader.load()
+        if not documents: raise ValueError("Empty PDF")
+        
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        chunks = text_splitter.split_documents(documents)
+        vector_db.add_documents(chunks)
+        return len(chunks)
+    except Exception as e:
+        raise ValueError(f"Ingestion failed: {str(e)}")
 
 def summarize_document(file_path, model_name="gemini-2.5-flash"):
     loader = PyPDFLoader(file_path)
@@ -38,17 +60,16 @@ def summarize_document(file_path, model_name="gemini-2.5-flash"):
     full_text = "\n".join([d.page_content for d in docs])
     
     prompt = f"""
-    You are an expert synthesizer. Provide a concise summary of this document with 5 key bullet points.
+    Provide a concise summary of this document with 5 key bullet points.
     Use Markdown formatting.
     Document Content: {full_text[:30000]} 
     """
     
-    llm = get_llm(model_name)
     try:
-        response = llm.invoke(prompt)
-        return response.content
+        llm = get_llm(model_name)
+        return llm.invoke(prompt).content
     except Exception as e:
-        return f"Error: {str(e)}"
+        return get_friendly_error(e)
 
 def generate_flashcards(file_path, model_name="gemini-2.5-flash"):
     loader = PyPDFLoader(file_path)
@@ -61,44 +82,39 @@ def generate_flashcards(file_path, model_name="gemini-2.5-flash"):
     Text: {full_text[:20000]}
     """
     
-    llm = get_llm(model_name)
     try:
-        response = llm.invoke(prompt)
-        clean_json = response.content.replace("```json", "").replace("```", "").strip()
-        return clean_json
+        llm = get_llm(model_name)
+        res = llm.invoke(prompt)
+        return res.content.replace("```json", "").replace("```", "").strip()
     except:
         return "[]"
 
 def query_expansion_search(query: str, model_name: str = "gemini-2.5-flash") -> str:
-    """
-    Strict RAG: Searches for context and synthesizes an answer. 
-    Prevents hallucination by enforcing context usage.
-    """
     llm = get_llm(model_name)
     
-    # 1. Retrieve Context (Get top 5 relevant chunks)
-    results = vector_db.similarity_search(query, k=5)
-    context = "\n---\n".join([doc.page_content for doc in results])
-
-    # 2. Strict Synthesis Prompt
-    synthesis_prompt = PromptTemplate.from_template(
-        """
-        You are a highly accurate research assistant. 
-        Answer the user's question using ONLY the context provided below.
+    try:
+        # 1. Search
+        results = vector_db.similarity_search(query, k=5)
+        if not results: return "No relevant info found."
         
-        If the answer is not in the context, say: "I cannot find that information in the uploaded document."
-        Do not guess. Use Markdown formatting (bolding, lists) to make the answer clear.
+        context = "\n---\n".join([doc.page_content for doc in results])
 
-        QUESTION: {query}
+        # 2. Synthesize
+        synthesis_prompt = PromptTemplate.from_template(
+            """
+            You are a research assistant. Answer the question using ONLY the context below.
+            Use Markdown (bolding, lists) for clarity.
+            
+            QUESTION: {query}
+            CONTEXT: {context}
+            """
+        )
         
-        CONTEXT:
-        {context}
-        """
-    )
-    
-    chain = synthesis_prompt | llm | StrOutputParser()
-    return chain.invoke({"query": query, "context": context})
+        chain = synthesis_prompt | llm | StrOutputParser()
+        return chain.invoke({"query": query, "context": context})
+        
+    except Exception as e:
+        return get_friendly_error(e)
 
-# Main entry point used by API
 def query_documents(query):
-    return query_expansion_search(query)
+    return query_expansion_search(query, "gemini-2.5-flash")
