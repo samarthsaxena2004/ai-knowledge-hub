@@ -4,6 +4,9 @@
 ![Docker](https://img.shields.io/badge/Docker-Enabled-blue?logo=docker)
 ![Tech Stack](https://img.shields.io/badge/Stack-Next.js%20%7C%20FastAPI%20%7C%20LangChain-orange)
 
+> **⚠️ Important Notice**  
+> It is **strongly recommended** to run this application **locally** using your own Google Gemini API key. The publicly deployed version is intended only as a demo and may be rate-limit heavily, become unavailable without notice, or incur unexpected costs when usage spikes. Running it locally gives you full control, unlimited usage (subject to your own key’s quota), and guarantees data privacy.
+
 **AI Knowledge Hub** is a powerful Retrieval-Augmented Generation (RAG) platform that transforms static PDF documents into an interactive "Second Brain."
 
 Users can upload textbooks, research papers, or legal documents and instantly receive **concise summaries**, **study flashcards**, and a **semantic chat interface** to ask deep questions about the content.
